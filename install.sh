@@ -28,7 +28,7 @@ apt-get install -y python3 python3-venv git curl jq > /dev/null
 
 # 3. Setup directory and clone
 INSTALL_DIR="/opt/setup-vps"
-REPO_URL="https://github.com/YOUR_USERNAME/setup-vps.git" # ЗАМЕНИТЕ ПОСЛЕ СОЗДАНИЯ РЕПО
+REPO_URL="https://github.com/qr3n/setup-vps.git" # ЗАМЕНИТЕ ПОСЛЕ СОЗДАНИЯ РЕПО
 
 echo -e "\n${GREEN}[2/4] Cloning repository to ${INSTALL_DIR}...${NC}"
 if [ -d "$INSTALL_DIR" ]; then
