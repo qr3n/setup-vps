@@ -50,7 +50,7 @@ class FinalVerificationStep(BaseStep):
         print_info("Checking XHTTP endpoint...")
         xhttp = run_shell(
             f"curl -s -o /dev/null -w '%{{http_code}}' "
-            f"https://{config.cdn_domain}/api/v1/sync "
+            f"https://{config.cdn_domain}/api/v1/sync/ "
             f"--resolve {config.cdn_domain}:443:127.0.0.1 "
             f"--max-time 5 -k",
             capture=True,
