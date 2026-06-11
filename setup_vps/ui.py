@@ -23,28 +23,33 @@ ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 LOG_COLORS = ["#ffffff", "#e4e4e4", "#cccccc", "#b2b2b2", "#999999", "#808080", "#666666", "#4d4d4d"]
 
 class LiveLog:
-    def __init__(self, max_lines: int = 6):
-        self.lines = []
+    def __init__(self, max_lines: int = 4):
+        # Initialize with empty strings to guarantee fixed height from the start
+        self.lines = [""] * max_lines
         self.max_lines = max_lines
 
     def add_line(self, line: str):
         # Remove ANSI codes, carriage returns, and strip extra spaces
         clean_line = ANSI_ESCAPE.sub('', line)
         clean_line = clean_line.replace('\r', '').replace('\n', '').strip()
+        
+        # Remove consecutive spaces that dpkg uses for formatting
+        clean_line = re.sub(r'\s+', ' ', clean_line).strip()
+        
         if not clean_line:
             return
         
         self.lines.append(clean_line)
-        if len(self.lines) > self.max_lines:
-            self.lines.pop(0)
+        self.lines = self.lines[-self.max_lines:]
 
     def __rich__(self) -> Group:
         styled_lines = []
         # Reverse to apply gradient from bottom (newest) to top (oldest)
         for i, line in enumerate(reversed(self.lines)):
             color = LOG_COLORS[i] if i < len(LOG_COLORS) else LOG_COLORS[-1]
-            # no_wrap and ellipsis prevent the terminal from wrapping long lines and breaking the Live layout
-            styled_lines.append(Text(f"  {line}", style=color, overflow="ellipsis", no_wrap=True))
+            # Use a non-empty space for empty lines to preserve height
+            display_text = f"  {line}" if line else " "
+            styled_lines.append(Text(display_text, style=color, overflow="ellipsis", no_wrap=True))
         
         return Group(*reversed(styled_lines))
 
