@@ -1,6 +1,8 @@
 # setup_vps/steps/s08_verify.py
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
+from setup_vps.steps.s00_xanmod import XanModStep
 from setup_vps.steps.s01_system import SystemPreparationStep
+from setup_vps.steps.s01b_hardware import HardwareTuningStep
 from setup_vps.steps.s02_sysctl import SysctlStep
 from setup_vps.steps.s03_ssh import SSHHardeningStep
 from setup_vps.steps.s04_firewall import FirewallStep
@@ -12,7 +14,9 @@ from setup_vps.ui import print_info, print_check_result, ask_confirm, print_erro
 
 
 ALL_STEPS = [
+    XanModStep(),
     SystemPreparationStep(),
+    HardwareTuningStep(),
     SysctlStep(),
     SSHHardeningStep(),
     FirewallStep(),

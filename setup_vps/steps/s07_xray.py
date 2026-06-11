@@ -100,10 +100,10 @@ def _xray_config(cfg) -> dict:
                     "finalmask": {
                         "quicParams": {
                             "congestion": "bbr",
-                            "initStreamReceiveWindow": 6291456,
-                            "maxStreamReceiveWindow": 6291456,
-                            "initConnectionReceiveWindow": 15728640,
-                            "maxConnectionReceiveWindow": 15728640,
+                            "initStreamReceiveWindow": 8388608,
+                            "maxStreamReceiveWindow": 8388608,
+                            "initConnectionReceiveWindow": 20971520,
+                            "maxConnectionReceiveWindow": 20971520,
                         }
                     }
                 },

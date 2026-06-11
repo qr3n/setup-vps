@@ -16,7 +16,8 @@ REQUIRED_PACKAGES = [
     "curl", "wget", "gnupg", "ca-certificates",
     "unattended-upgrades", "apt-listchanges",
     "ufw", "knockd", "certbot",
-    "net-tools", "lsof", "lsb-release"
+    "net-tools", "lsof", "lsb-release",
+    "ethtool", "linux-cpupower", "mokutil"
 ]
 
 

@@ -19,11 +19,26 @@ net.core.rmem_max=16777216
 net.core.wmem_max=16777216
 net.ipv4.tcp_rmem=4096 87380 16777216
 net.ipv4.tcp_wmem=4096 65536 16777216
+net.ipv4.tcp_moderate_rcvbuf=1
+
+# ── UDP Buffers (quic-go requirements) ──────────────────────────────────────
+net.ipv4.udp_rmem_min=8192
+net.ipv4.udp_wmem_min=8192
+net.core.optmem_max=65536
+
+# ── Networking: Performance ─────────────────────────────────────────────────
+net.core.netdev_max_backlog=32768
+net.core.netdev_budget=600
+net.core.netdev_budget_usecs=8000
+
+# ── TCP: Metrics & Idle ─────────────────────────────────────────────────────
+net.ipv4.tcp_no_metrics_save=1
+net.ipv4.tcp_slow_start_after_idle=0
 
 # ── TIME_WAIT tuning ────────────────────────────────────────────────────────
 net.ipv4.tcp_max_tw_buckets=1440000
 net.ipv4.tcp_tw_reuse=1
-net.ipv4.ip_local_port_range=1024 65535
+net.ipv4.ip_local_port_range=50001 65535
 
 # ── Keepalive ───────────────────────────────────────────────────────────────
 net.ipv4.tcp_keepalive_time=60
@@ -53,7 +68,7 @@ net.ipv4.conf.all.send_redirects=0
 class SysctlStep(BaseStep):
     name = "s02_sysctl"
     title = "Kernel / Sysctl"
-    description = "BBR congestion control, TCP buffer tuning, security hardening"
+    description = "BBR congestion control, TCP buffer tuning, performance hardening"
 
     def preflight(self, config, state) -> bool:
         if not Path(SYSCTL_FILE).exists():
@@ -61,8 +76,9 @@ class SysctlStep(BaseStep):
         content = Path(SYSCTL_FILE).read_text()
         if SYSCTL_MARKER not in content:
             return False
-        bbr = run_shell("sysctl -n net.ipv4.tcp_congestion_control", capture=True)
-        return bbr.stdout.strip() == "bbr"
+        # Check one key new value
+        metrics = run_shell("sysctl -n net.ipv4.tcp_no_metrics_save", capture=True)
+        return metrics.stdout.strip() == "1"
 
     def run(self, config, state) -> StepResult:
         log = self.log_path()
@@ -88,17 +104,21 @@ class SysctlStep(BaseStep):
     def verify(self, config, state) -> VerifyResult:
         checks = {}
 
-        bbr = run_shell("sysctl -n net.ipv4.tcp_congestion_control", capture=True).stdout.strip()
-        checks["tcp_congestion_control"] = bbr
-        bbr_ok = bbr == "bbr"
+        def get_sysctl(key):
+            val = run_shell(f"sysctl -n {key}", capture=True).stdout.strip()
+            checks[key] = val
+            return val
 
-        qdisc = run_shell("sysctl -n net.core.default_qdisc", capture=True).stdout.strip()
-        checks["default_qdisc"] = qdisc
-        qdisc_ok = qdisc == "fq"
+        bbr = get_sysctl("net.ipv4.tcp_congestion_control")
+        backlog = get_sysctl("net.core.netdev_max_backlog")
+        metrics = get_sysctl("net.ipv4.tcp_no_metrics_save")
+        port_range = get_sysctl("net.ipv4.ip_local_port_range")
 
-        swappiness = run_shell("sysctl -n vm.swappiness", capture=True).stdout.strip()
-        checks["vm.swappiness"] = swappiness
-        swap_ok = swappiness == "1"
-
-        passed = bbr_ok and qdisc_ok and swap_ok
+        passed = (
+            bbr == "bbr" and 
+            backlog == "32768" and 
+            metrics == "1" and 
+            port_range == "50001\t65535"
+        )
         return VerifyResult(passed=passed, checks=checks)
+
