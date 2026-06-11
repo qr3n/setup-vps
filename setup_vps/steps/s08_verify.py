@@ -48,11 +48,11 @@ class FinalVerificationStep(BaseStep):
 
         # Additional connectivity checks
         print_info("Checking XHTTP endpoint...")
-        # Note: we use -k because it's local and we might not have external DNS resolution for these domains on the server itself sometimes
+        # Note: we use --resolve to force local connection but still send proper SNI for Nginx stream routing
         xhttp = run_shell(
             f"curl -s -o /dev/null -w '%{{http_code}}' "
-            f"https://127.0.0.1/api/v1/sync "
-            f"-H 'Host: {config.cdn_domain}' "
+            f"https://{config.cdn_domain}/api/v1/sync "
+            f"--resolve {config.cdn_domain}:443:127.0.0.1 "
             f"--max-time 5 -k",
             capture=True,
         )
@@ -67,7 +67,7 @@ class FinalVerificationStep(BaseStep):
             error_details += "[bold red]XHTTP Endpoint Diagnostics:[/bold red]\n\n"
             
             # Get verbose curl output
-            curl_diag = run_shell(f"curl -v -s -o /dev/null https://127.0.0.1/api/v1/sync -H 'Host: {config.cdn_domain}' --max-time 5 -k 2>&1", capture=True)
+            curl_diag = run_shell(f"curl -v -s -o /dev/null https://{config.cdn_domain}/api/v1/sync --resolve {config.cdn_domain}:443:127.0.0.1 --max-time 5 -k 2>&1", capture=True)
             error_details += f"[cyan]1. curl -v output:[/cyan]\n{curl_diag.stdout.strip()[:1000]}\n\n"
             
             # Get Xray journalctl
