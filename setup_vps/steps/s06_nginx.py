@@ -139,6 +139,16 @@ class NginxStep(BaseStep):
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="nginx installation failed")
 
+        print_info("Ensuring nginx stream modules are enabled...")
+        modules_dir = Path("/etc/nginx/modules-enabled")
+        modules_dir.mkdir(parents=True, exist_ok=True)
+        for mod in ["ngx_stream_module.so", "ngx_stream_ssl_preread_module.so"]:
+            mod_path = Path(f"/usr/lib/nginx/modules/{mod}")
+            link_path = modules_dir / f"50-{mod[:-3]}.conf"
+            # Only create if module .so exists and symlink not yet present
+            if mod_path.exists() and not link_path.exists():
+                link_path.write_text(f"load_module {mod_path};\n")
+
         print_info("Writing main nginx.conf...")
         Path(NGINX_CONF).write_text(_nginx_conf_content(config.main_domain, config.cdn_domain))
 
@@ -182,6 +192,11 @@ class NginxStep(BaseStep):
         checks["port_443"] = "listening" if ":443 " in ports else "MISSING"
         checks["port_8443"] = "listening" if "127.0.0.1:8443 " in ports else "MISSING"
 
-        passed = test_ok and active_ok and ":443 " in ports
+        # Verify stream ssl_preread module is actually loaded
+        stream_check = run_shell("nginx -V 2>&1 | grep -q 'stream_ssl_preread'", capture=True)
+        preread_ok = stream_check.returncode == 0
+        checks["stream_ssl_preread"] = "loaded" if preread_ok else "MISSING — ssl_preread not compiled in"
+
+        passed = test_ok and active_ok and ":443 " in ports and preread_ok
         return VerifyResult(passed=passed, checks=checks)
 

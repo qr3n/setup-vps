@@ -50,7 +50,13 @@ def _xray_config(cfg) -> dict:
                 },
                 "streamSettings": {
                 "network": "xhttp",
-                "security": "none",
+                "security": "tls",
+                "tlsSettings": {
+                    "certificates": [{
+                        "certificateFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/fullchain.pem",
+                        "keyFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/privkey.pem"
+                    }]
+                },
                 "xhttpSettings": {
                     "path": "/api/v1/sync",
                     "host": cfg.cdn_domain,

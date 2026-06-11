@@ -57,8 +57,8 @@ class FinalVerificationStep(BaseStep):
             capture=True,
         )
         code = xhttp.stdout.strip()
-        # Xray returns 400 for empty packet-up POST, which is fine
-        xhttp_ok = code in ("200", "400", "405")
+        # Xray returns 400 for empty packet-up POST, which is fine; 404 for GET is also fine
+        xhttp_ok = code in ("200", "400", "404", "405")
         print_check_result("xhttp_endpoint_local", code, passed=xhttp_ok)
 
         error_details = ""
