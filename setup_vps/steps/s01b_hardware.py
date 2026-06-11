@@ -7,7 +7,7 @@ NIC_OFFLOADS_SERVICE = "/etc/systemd/system/nic-offloads.service"
 
 NIC_SERVICE_CONTENT = """\
 [Unit]
-Description=NIC offload tuning
+Description=NIC offload and queue tuning
 After=network-pre.target
 Before=network.target
 
@@ -16,14 +16,19 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/bash -c '\\
   IFACE=$(ip route get 1.1.1.1 | grep -oP "dev \\\\K\\\\S+"); \\
+  NCPU=$(nproc); \\
+  CPU_MASK=$(printf "%%x" $(( (1 << NCPU) - 1 ))); \\
   ethtool -K $IFACE gso on gro on tso on tx-checksumming on 2>/dev/null; \\
   ethtool -K $IFACE tx-udp-segmentation on 2>/dev/null || true; \\
   ethtool -K $IFACE rx-udp-gro-forwarding on 2>/dev/null || true; \\
-  MAX_RX=$(ethtool -g $IFACE 2>/dev/null | awk "/Pre-set max/{{found=1}} found && /RX:/{{print \\$2; exit}}"); \\
-  MAX_TX=$(ethtool -g $IFACE 2>/dev/null | awk "/Pre-set max/{{found=1}} found && /TX:/{{print \\$2; exit}}"); \\
-  RX=$(( MAX_RX > 4096 ? 4096 : MAX_RX )); \\
-  TX=$(( MAX_TX > 4096 ? 4096 : MAX_TX )); \\
-  ethtool -G $IFACE rx $RX tx $TX 2>/dev/null || true'
+  ethtool -L $IFACE combined $NCPU 2>/dev/null || true; \\
+  for f in /sys/class/net/$IFACE/queues/rx-*/rps_cpus; do \\
+    echo $CPU_MASK > $f 2>/dev/null || true; \\
+  done; \\
+  echo 32768 > /proc/sys/net/core/rps_sock_flow_entries 2>/dev/null || true; \\
+  for f in /sys/class/net/$IFACE/queues/rx-*/rps_flow_cnt; do \\
+    echo 32768 > $f 2>/dev/null || true; \\
+  done'
 
 [Install]
 WantedBy=multi-user.target

@@ -62,6 +62,8 @@ vm.vfs_cache_pressure=50
 net.ipv4.conf.all.rp_filter=1
 net.ipv4.conf.all.accept_redirects=0
 net.ipv4.conf.all.send_redirects=0
+
+net.core.rps_sock_flow_entries=32768
 """
 
 
