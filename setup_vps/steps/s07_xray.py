@@ -156,7 +156,8 @@ class XrayStep(BaseStep):
         print_info("Testing xray config...")
         r = run_shell(f"{XRAY_BIN} run -test -config {XRAY_CONF}", log_path=log)
         if r.returncode != 0:
-            return StepResult(success=False, error=r.stderr, message="xray config test failed")
+            error_details = f"{r.stdout}\n{r.stderr}".strip()
+            return StepResult(success=False, error=error_details, message="xray config test failed")
 
         print_info("Enabling xray service...")
         r = run_shell("systemctl enable --now xray", log_path=log)
