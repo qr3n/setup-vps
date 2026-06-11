@@ -130,20 +130,22 @@ def print_step_header(title: str):
     console.rule(f"[bold cyan]{title}[/bold cyan]")
 
 
+from rich.markup import escape
+
 def print_success(msg: str):
-    console.print(f"[green]✓[/green] {msg}")
+    console.print(f"[green]✓[/green] {escape(str(msg))}")
 
 
 def print_error(msg: str):
-    console.print(f"[red]✗[/red] {msg}")
+    console.print(f"[red]✗[/red] {escape(str(msg))}")
 
 
 def print_warning(msg: str):
-    console.print(f"[yellow]⚠[/yellow]  {msg}")
+    console.print(f"[yellow]⚠[/yellow]  {escape(str(msg))}")
 
 
 def print_info(msg: str):
-    console.print(f"[dim]→[/dim] {msg}")
+    console.print(f"[dim]→[/dim] {escape(str(msg))}")
 
 
 def print_box(title: str, content: str, style: str = "cyan"):

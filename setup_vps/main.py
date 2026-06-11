@@ -79,7 +79,8 @@ def _run_step(step, config, state):
         else:
             print_error(result.message)
             if result.error:
-                console.print(f"[dim]{result.error}[/dim]")
+                from rich.markup import escape
+                console.print(escape(str(result.error)), style="dim")
             state.mark_failed(step.name, error=result.error or result.message)
             return False
     except Exception as e:
