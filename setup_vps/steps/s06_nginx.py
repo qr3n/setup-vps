@@ -82,14 +82,33 @@ server {{
 server {{
     listen 127.0.0.1:8443 ssl;
     http2 on;
-    server_name {main_domain} {cdn_domain};
+    server_name {main_domain};
 
     ssl_certificate     /etc/letsencrypt/live/{main_domain}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{main_domain}/privkey.pem;
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
-    
+
+    root /var/www/html;
+    index index.html;
+
+    location / {{
+        try_files $uri $uri/ =404;
+    }}
+}}
+
+server {{
+    listen 127.0.0.1:8443 ssl;
+    http2 on;
+    server_name {cdn_domain};
+
+    ssl_certificate     /etc/letsencrypt/live/{cdn_domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{cdn_domain}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
+
     root /var/www/html;
     index index.html;
 
