@@ -152,6 +152,7 @@ class XrayStep(BaseStep):
         print_info("Writing xray config.json...")
         Path(XRAY_CONF).parent.mkdir(parents=True, exist_ok=True)
         Path(XRAY_CONF).write_text(json.dumps(_xray_config(config), indent=2))
+        run_shell(f"chown -R nobody:nogroup {Path(XRAY_CONF).parent}", log_path=log)
 
         print_info("Testing xray config...")
         r = run_shell(f"{XRAY_BIN} run -test -config {XRAY_CONF}", log_path=log)
