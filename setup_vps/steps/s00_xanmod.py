@@ -90,7 +90,7 @@ class XanModStep(BaseStep):
             return StepResult(success=False, error=r.stderr, message="XanMod installation failed via apt/dpkg.")
 
         print_warning("XanMod kernel installed. REBOOT IS REQUIRED to activate BBR3.")
-        return StepResult(success=True, message="XanMod installed. Please reboot the server.")
+        return StepResult(success=True, message="XanMod installed. Please reboot the server.", reboot_required=True)
 
     def verify(self, config, state) -> VerifyResult:
         uname = run_shell("uname -r", capture=True).stdout.strip()

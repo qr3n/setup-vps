@@ -43,7 +43,14 @@ class SystemPreparationStep(BaseStep):
 
         def apt_update(on_output):
             env = {"DEBIAN_FRONTEND": "noninteractive"}
-            return run_shell("apt-get update -qq && apt-get full-upgrade -yq", log_path=log, on_output=on_output, env=env)
+
+            # Удаляем мертвый репозиторий XanMod, если он остался от прошлых запусков
+            run_shell(
+                "rm -f /etc/apt/sources.list.d/xanmod-release.list /usr/share/keyrings/xanmod-archive-keyring.gpg",
+                log_path=log)
+
+            return run_shell("apt-get update -qq && apt-get full-upgrade -yq", log_path=log, on_output=on_output,
+                             env=env)
 
         print_info("Updating apt packages...")
         r = run_with_live_logs("Apt Update & Upgrade", apt_update)

@@ -71,7 +71,7 @@ def _run_step(step, config, state):
     # Idempotent check
     if step.preflight(config, state) and state.get_status(step.name) == StepStatus.DONE:
         print_info(f"{step.title} already complete, skipping.")
-        return True
+        return True, False
 
     state.mark_running(step.name)
     try:
@@ -79,18 +79,18 @@ def _run_step(step, config, state):
         if result.success:
             print_success(result.message)
             state.mark_done(step.name)
-            return True
+            return True, result.reboot_required
         else:
             print_error(result.message)
             if result.error:
                 from rich.markup import escape
                 console.print(escape(str(result.error)), style="dim")
             state.mark_failed(step.name, error=result.error or result.message)
-            return False
+            return False, False
     except Exception as e:
         print_error(f"Unexpected error: {e}")
         state.mark_failed(step.name, error=str(e))
-        return False
+        return False, False
 
 
 @click.command()
@@ -128,7 +128,11 @@ def cli(config_file):
             for step in STEPS:
                 status = state.get_status(step.name)
                 if status in (StepStatus.PENDING, StepStatus.FAILED, StepStatus.STALE):
-                    if not _run_step(step, cfg, state):
+                    success, reboot = _run_step(step, cfg, state)
+                    if reboot:
+                        print_warning("Reboot required. Please reboot and run again.")
+                        break
+                    if not success:
                         err_choice = ask_error_choice()
                         if err_choice == "r":
                             # Will retry in next iteration of outer loop if they hit 'r' again

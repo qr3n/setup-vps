@@ -10,6 +10,7 @@ class StepResult:
     success: bool
     message: str = ""
     error: str = ""
+    reboot_required: bool = False
 
 
 @dataclass
