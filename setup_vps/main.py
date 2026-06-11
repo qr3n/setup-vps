@@ -12,7 +12,6 @@ from setup_vps.ui import (
     print_error, print_warning, print_info,
 )
 from prompt_toolkit import prompt
-from setup_vps.steps.s00_xanmod import XanModStep
 from setup_vps.steps.s01_system import SystemPreparationStep
 from setup_vps.steps.s01b_hardware import HardwareTuningStep
 from setup_vps.steps.s02_sysctl import SysctlStep
@@ -27,7 +26,6 @@ CONFIG_PATH = Path("config.yaml")
 STATE_PATH = Path("state.json")
 
 STEPS = [
-    XanModStep(),
     SystemPreparationStep(),
     HardwareTuningStep(),
     SysctlStep(),
