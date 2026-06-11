@@ -38,14 +38,22 @@ class SystemPreparationStep(BaseStep):
     def run(self, config, state) -> StepResult:
         log = self.log_path()
 
+        from setup_vps.ui import run_with_live_logs
+
+        def apt_update(on_output):
+            return run_shell("apt-get update -qq && apt-get full-upgrade -y", log_path=log, on_output=on_output)
+
         print_info("Updating apt packages...")
-        r = run_shell("apt-get update -qq && apt-get full-upgrade -y", log_path=log)
+        r = run_with_live_logs("Apt Update & Upgrade", apt_update)
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="apt upgrade failed")
 
+        def apt_install(on_output):
+            pkgs = " ".join(REQUIRED_PACKAGES)
+            return run_shell(f"apt-get install -y {pkgs}", log_path=log, on_output=on_output)
+
         print_info(f"Installing required packages...")
-        pkgs = " ".join(REQUIRED_PACKAGES)
-        r = run_shell(f"apt-get install -y {pkgs}", log_path=log)
+        r = run_with_live_logs("Installing dependencies", apt_install)
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="package install failed")
 

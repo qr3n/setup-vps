@@ -1,5 +1,5 @@
 # setup_vps/ui.py
-from rich.console import Console
+from rich.console import Console, Group
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
@@ -10,11 +10,44 @@ from prompt_toolkit import prompt
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.styles import Style
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 from setup_vps.state import StepStatus
 
 console = Console()
+
+# Gradient for log dimming (from bright white to dark grey)
+LOG_COLORS = ["#ffffff", "#e4e4e4", "#cccccc", "#b2b2b2", "#999999", "#808080", "#666666", "#4d4d4d"]
+
+class LiveLog:
+    def __init__(self, max_lines: int = 8):
+        self.lines = []
+        self.max_lines = max_lines
+
+    def add_line(self, line: str):
+        if not line.strip(): return
+        # Keep only the last N lines
+        self.lines.append(line[:120]) # truncate long lines
+        if len(self.lines) > self.max_lines:
+            self.lines.pop(0)
+
+    def __rich__(self) -> Group:
+        styled_lines = []
+        # Reverse to apply gradient from bottom (newest) to top (oldest)
+        for i, line in enumerate(reversed(self.lines)):
+            color = LOG_COLORS[i] if i < len(LOG_COLORS) else LOG_COLORS[-1]
+            styled_lines.append(Text(f"  {line}", style=color))
+        
+        return Group(*reversed(styled_lines))
+
+def run_with_live_logs(title: str, func: Callable[[Callable[[str], None]], Any]) -> Any:
+    live_log = LiveLog()
+    with Live(Group(Spinner("dots", text=Text(f" {title}", style="bold cyan")), live_log), transient=True, console=console) as live:
+        def callback(line: str):
+            live_log.add_line(line)
+            # live.update(...) is automatic because LiveLog has __rich__
+        
+        return func(callback)
 
 STATUS_ICONS = {
     StepStatus.DONE: "[green]✓[/green]",
@@ -41,8 +74,8 @@ def print_main_menu(domain: str, steps: list[tuple[str, str, StepStatus]], done:
         table.add_row(f"  [{idx}] {title}", f"{icon} {status.value}  ")
 
     table.add_row("", "")
-    table.add_row("  [r] Run all pending   [c] Config", "")
-    table.add_row("  [v] Verify step       [q] Quit", "")
+    table.add_row("  [[r]] Run all pending   [[c]] Config", "")
+    table.add_row("  [[v]] Verify step       [[q]] Quit", "")
 
     panel = Panel(
         table,
