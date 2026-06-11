@@ -61,10 +61,27 @@ class FinalVerificationStep(BaseStep):
         xhttp_ok = code in ("200", "400", "405")
         print_check_result("xhttp_endpoint_local", code, passed=xhttp_ok)
 
+        error_details = ""
+        if not xhttp_ok:
+            all_passed = False
+            error_details += "[bold red]XHTTP Endpoint Diagnostics:[/bold red]\n\n"
+            
+            # Get verbose curl output
+            curl_diag = run_shell(f"curl -v -s -o /dev/null https://127.0.0.1/api/v1/sync -H 'Host: {config.cdn_domain}' --max-time 5 -k 2>&1", capture=True)
+            error_details += f"[cyan]1. curl -v output:[/cyan]\n{curl_diag.stdout.strip()[:1000]}\n\n"
+            
+            # Get Xray journalctl
+            xray_diag = run_shell("journalctl -u xray --no-pager -n 20", capture=True)
+            error_details += f"[cyan]2. Xray Logs (last 20 lines):[/cyan]\n{xray_diag.stdout.strip()}\n\n"
+            
+            # Get Nginx error.log
+            nginx_diag = run_shell("tail -n 15 /var/log/nginx/error.log 2>/dev/null", capture=True)
+            error_details += f"[cyan]3. Nginx error.log (last 15 lines):[/cyan]\n{nginx_diag.stdout.strip()}\n"
+
         if all_passed:
             return StepResult(success=True, message="All verification checks passed")
         else:
-            return StepResult(success=False, message="Some checks failed — see output above")
+            return StepResult(success=False, error=error_details, message="Some checks failed — see output above")
 
     def verify(self, config, state) -> VerifyResult:
         return VerifyResult(passed=True, checks={"note": "run step for full verification"})
