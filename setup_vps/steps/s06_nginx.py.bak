@@ -86,8 +86,6 @@ server {{
 
     ssl_certificate     /etc/letsencrypt/live/{main_domain}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{main_domain}/privkey.pem;
-    # Note: cdn_domain traffic goes directly to Xray (port 8001) via stream SNI routing,
-    # so this HTTPS block serves only main_domain fallback on 8443.
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
@@ -184,4 +182,12 @@ class NginxStep(BaseStep):
 
         passed = test_ok and active_ok and ":443 " in ports
         return VerifyResult(passed=passed, checks=checks)
+        return StepResult(success=False, error=r.stderr, message="nginx -t failed")
+
+        print_info("Restarting nginx...")
+        r = run_shell("systemctl restart nginx", log_path=log)
+        if r.returncode != 0:
+            return StepResult(success=False, error=r.stderr, message="nginx restart failed")
+
+        return StepResult(success=True, message="Nginx configured")
 
