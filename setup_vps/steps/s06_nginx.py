@@ -117,6 +117,26 @@ class NginxStep(BaseStep):
     def run(self, config, state) -> StepResult:
         log = self.log_path()
 
+        from setup_vps.ui import run_with_live_logs
+
+        def install_nginx(on_output):
+            cmds = [
+                "curl -sS https://nginx.org/keys/nginx_signing.key | gpg --dearmor | dd of=/usr/share/keyrings/nginx-archive-keyring.gpg 2>/dev/null",
+                "ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')",
+                "CODENAME=$(lsb_release -cs)",
+                "echo \"deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/mainline/$ID $CODENAME nginx\" > /etc/apt/sources.list.d/nginx.list",
+                "echo -e \"Package: *\\nPin: origin nginx.org\\nPin: release o=nginx\\nPin-Priority: 900\\n\" > /etc/apt/preferences.d/99nginx",
+                "apt-get update -qq",
+                "apt-get install -yq nginx"
+            ]
+            env = {"DEBIAN_FRONTEND": "noninteractive"}
+            return run_shell(" && ".join(cmds), log_path=log, on_output=on_output, env=env)
+
+        print_info("Ensuring latest mainline Nginx is installed...")
+        r = run_with_live_logs("Installing Nginx", install_nginx)
+        if r.returncode != 0:
+            return StepResult(success=False, error=r.stderr, message="nginx installation failed")
+
         print_info("Writing main nginx.conf...")
         Path(NGINX_CONF).write_text(_nginx_conf_content(config.main_domain, config.cdn_domain))
 
@@ -162,7 +182,7 @@ class NginxStep(BaseStep):
 
         passed = test_ok and active_ok and ":443 " in ports
         return VerifyResult(passed=passed, checks=checks)
-n StepResult(success=False, error=r.stderr, message="nginx -t failed")
+        return StepResult(success=False, error=r.stderr, message="nginx -t failed")
 
         print_info("Restarting nginx...")
         r = run_shell("systemctl restart nginx", log_path=log)
@@ -171,21 +191,3 @@ n StepResult(success=False, error=r.stderr, message="nginx -t failed")
 
         return StepResult(success=True, message="Nginx configured")
 
-    def verify(self, config, state) -> VerifyResult:
-        checks = {}
-
-        test = run_shell("nginx -t 2>&1", capture=True)
-        checks["nginx_t"] = "ok" if test.returncode == 0 else test.stdout.strip()[:100]
-        test_ok = test.returncode == 0
-
-        active = run_shell("systemctl is-active nginx", capture=True).stdout.strip()
-        checks["nginx_active"] = active
-        active_ok = active == "active"
-
-        ports = run_shell("ss -tlnp", capture=True).stdout
-        checks["port_80"] = "listening" if ":80 " in ports else "MISSING"
-        checks["port_443"] = "listening" if ":443 " in ports else "MISSING"
-        checks["port_8443"] = "listening" if "127.0.0.1:8443 " in ports else "MISSING"
-
-        passed = test_ok and active_ok and ":443 " in ports
-        return VerifyResult(passed=passed, checks=checks)
