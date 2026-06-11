@@ -11,11 +11,12 @@ NGINX_MARKER = "# setup-vps: nginx"
 
 def _nginx_conf_content(main_domain: str, cdn_domain: str) -> str:
     # We need to ensure stream module is loaded and configured correctly
-    # Usually in Ubuntu it's already there, but we might need to add the stream block
     return f"""\
 user www-data;
 worker_processes auto;
 pid /run/nginx.pid;
+
+# Load modules if directory exists
 include /etc/nginx/modules-enabled/*.conf;
 
 events {{
@@ -141,16 +142,21 @@ class NginxStep(BaseStep):
         Path(NGINX_CONF).write_text(_nginx_conf_content(config.main_domain, config.cdn_domain))
 
         print_info("Writing vpn site config...")
+        Path("/etc/nginx/sites-available").mkdir(parents=True, exist_ok=True)
+        Path("/etc/nginx/sites-enabled").mkdir(parents=True, exist_ok=True)
+        Path("/etc/nginx/modules-enabled").mkdir(parents=True, exist_ok=True)
+        
         Path(NGINX_VPN_CONF).write_text(_vpn_site_content(config.main_domain, config.cdn_domain))
         
         enabled_path = Path("/etc/nginx/sites-enabled/vpn")
         if not enabled_path.exists():
             enabled_path.symlink_to(NGINX_VPN_CONF)
 
-        # Remove default
-        default_path = Path("/etc/nginx/sites-enabled/default")
-        if default_path.exists():
-            default_path.unlink()
+        # Remove default configs that might conflict
+        for p in ["/etc/nginx/sites-enabled/default", "/etc/nginx/conf.d/default.conf"]:
+            path_obj = Path(p)
+            if path_obj.exists():
+                path_obj.unlink()
 
         print_info("Testing nginx config...")
         r = run_shell("nginx -t", log_path=log)
@@ -182,12 +188,4 @@ class NginxStep(BaseStep):
 
         passed = test_ok and active_ok and ":443 " in ports
         return VerifyResult(passed=passed, checks=checks)
-        return StepResult(success=False, error=r.stderr, message="nginx -t failed")
-
-        print_info("Restarting nginx...")
-        r = run_shell("systemctl restart nginx", log_path=log)
-        if r.returncode != 0:
-            return StepResult(success=False, error=r.stderr, message="nginx restart failed")
-
-        return StepResult(success=True, message="Nginx configured")
 

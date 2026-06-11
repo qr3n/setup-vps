@@ -194,6 +194,7 @@ class XrayStep(BaseStep):
         print_info("Configuring iptables for Hysteria2 port hopping...")
         run_shell("iptables -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports 443", log_path=log)
         run_shell("ip6tables -t nat -A PREROUTING -p udp --dport 20000:50000 -j REDIRECT --to-ports 443", log_path=log)
+        Path("/etc/iptables").mkdir(parents=True, exist_ok=True)
         run_shell("iptables-save > /etc/iptables/rules.v4 2>/dev/null || true", log_path=log)
 
         # Show client config summary
