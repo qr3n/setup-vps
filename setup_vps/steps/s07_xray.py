@@ -49,24 +49,30 @@ def _xray_config(cfg) -> dict:
                     "decryption": "none",
                 },
                 "streamSettings": {
-                    "network": "xhttp",
-                    "security": "tls",
-                    "tlsSettings": {
-                        "alpn": ["h2", "http/1.1"],
-                        "certificates": [{
-                            "certificateFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/fullchain.pem",
-                            "keyFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/privkey.pem"
-                        }]
-                    },
-                    "xhttpSettings": {
-                        "path": "/api/v1/sync",
-                        "host": cfg.cdn_domain,
-                        "mode": "packet-up",
-                        "extra": {
-                            "noKeepAlive": True,
-                            "noGRPC": True
-                        }
-                    },
+                "network": "xhttp",
+                "security": "tls",
+                "tlsSettings": {
+                    "alpn": ["h2"],
+                    "minVersion": "1.3",
+                    "certificates": [{
+                        "certificateFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/fullchain.pem",
+                        "keyFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/privkey.pem"
+                    }]
+                },
+                "xhttpSettings": {
+                    "path": "/api/v1/sync",
+                    "host": cfg.cdn_domain,
+                    "mode": "packet-up",
+                    "extra": {
+                        "xPaddingBytes": "150-1500",
+                        "xPaddingHeader": "X-Request-ID",
+                        "xPaddingKey": "rid",
+                        "sessionKey": "X-Session",
+                        "seqKey": "X-Seq",
+                        "noKeepAlive": True,
+                        "noGRPC": True
+                    }
+                },
                 },
             },
             {
