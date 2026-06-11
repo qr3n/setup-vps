@@ -159,10 +159,11 @@ class XrayStep(BaseStep):
             error_details = f"{r.stdout}\n{r.stderr}".strip()
             return StepResult(success=False, error=error_details, message="xray config test failed")
 
-        print_info("Enabling xray service...")
-        r = run_shell("systemctl enable --now xray", log_path=log)
+        print_info("Enabling and restarting xray service...")
+        run_shell("systemctl enable xray", log_path=log)
+        r = run_shell("systemctl restart xray", log_path=log)
         if r.returncode != 0:
-            return StepResult(success=False, error=r.stderr, message="xray start failed")
+            return StepResult(success=False, error=r.stderr, message="xray restart failed")
 
         # Set up port hopping redirect for Hysteria2
         print_info("Configuring iptables for Hysteria2 port hopping...")
