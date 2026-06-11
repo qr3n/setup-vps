@@ -137,8 +137,8 @@ class XrayStep(BaseStep):
             if r.returncode != 0:
                 return StepResult(success=False, error=r.stderr, message="xray x25519 keygen failed")
             
-            priv_match = re.search(r"Private key: (.+)", r.stdout)
-            pub_match = re.search(r"Public key: (.+)", r.stdout)
+            priv_match = re.search(r"PrivateKey:\s+(.+)", r.stdout)
+            pub_match = re.search(r"Password \(PublicKey\):\s+(.+)", r.stdout)
             if priv_match and pub_match:
                 config.xray_reality_private_key = priv_match.group(1).strip()
                 config.xray_reality_public_key = pub_match.group(1).strip()
