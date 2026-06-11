@@ -52,6 +52,8 @@ def _xray_config(cfg) -> dict:
                 "network": "xhttp",
                 "security": "tls",
                 "tlsSettings": {
+                    "alpn": ["h2"],
+                    "minVersion": "1.3",
                     "certificates": [{
                         "certificateFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/fullchain.pem",
                         "keyFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/privkey.pem"
