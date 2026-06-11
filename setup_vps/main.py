@@ -7,10 +7,11 @@ import click
 from setup_vps.config import Config, load_config, save_config, config_hash, generate_secrets
 from setup_vps.state import State, StepStatus
 from setup_vps.ui import (
-    console, print_main_menu, ask_main_choice, ask_step_choice,
+    console, print_main_menu, ask_main_choice,
     ask_error_choice, ask_confirm, print_step_header, print_success,
     print_error, print_warning, print_info,
 )
+from prompt_toolkit import prompt
 from setup_vps.steps.s01_system import SystemPreparationStep
 from setup_vps.steps.s02_sysctl import SysctlStep
 from setup_vps.steps.s03_ssh import SSHHardeningStep

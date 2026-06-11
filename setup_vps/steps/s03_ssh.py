@@ -2,7 +2,7 @@
 from pathlib import Path
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
 from setup_vps.runner import run_shell
-from setup_vps.ui import print_info, print_warning, ask_confirm, print_box, console
+from setup_vps.ui import print_info, ask_confirm, print_box
 
 KNOCKD_CONF = "/etc/knockd.conf"
 SSH_HARDENING_CONF = "/etc/ssh/sshd_config.d/99-hardening.conf"

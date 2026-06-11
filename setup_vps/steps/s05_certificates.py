@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
 from setup_vps.runner import run_shell
-from setup_vps.ui import print_info, print_warning
+from setup_vps.ui import print_info
 
 
 def _cert_path(domain: str) -> Path:

@@ -5,7 +5,7 @@ import secrets
 from pathlib import Path
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
 from setup_vps.runner import run_shell
-from setup_vps.ui import print_info, print_box, console
+from setup_vps.ui import print_info, print_box
 from setup_vps.config import save_config
 
 XRAY_CONF = "/usr/local/etc/xray/config.json"

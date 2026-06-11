@@ -1,7 +1,7 @@
 # setup_vps/runner.py
 import subprocess
 import shlex
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Union, Callable

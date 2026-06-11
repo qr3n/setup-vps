@@ -2,8 +2,8 @@
 import re
 from pathlib import Path
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
-from setup_vps.runner import run_shell, run_cmd
-from setup_vps.ui import print_info, print_success, print_error
+from setup_vps.runner import run_shell
+from setup_vps.ui import print_info
 
 
 SWAP_FILE = "/swapfile"

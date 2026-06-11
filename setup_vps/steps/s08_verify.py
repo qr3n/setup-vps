@@ -8,7 +8,7 @@ from setup_vps.steps.s05_certificates import CertificatesStep
 from setup_vps.steps.s06_nginx import NginxStep
 from setup_vps.steps.s07_xray import XrayStep
 from setup_vps.runner import run_shell
-from setup_vps.ui import print_info, print_check_result, console
+from setup_vps.ui import print_info, print_check_result
 
 
 ALL_STEPS = [
