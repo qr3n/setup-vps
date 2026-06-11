@@ -15,8 +15,8 @@ SYSCONF_LIMITS_MARKER = "# setup-vps: ulimits"
 REQUIRED_PACKAGES = [
     "curl", "wget", "gnupg", "ca-certificates",
     "unattended-upgrades", "apt-listchanges",
-    "ufw", "knockd", "certbot", "nginx",
-    "net-tools", "lsof",
+    "ufw", "knockd", "certbot",
+    "net-tools", "lsof", "lsb-release"
 ]
 
 

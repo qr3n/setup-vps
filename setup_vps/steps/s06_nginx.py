@@ -162,3 +162,30 @@ class NginxStep(BaseStep):
 
         passed = test_ok and active_ok and ":443 " in ports
         return VerifyResult(passed=passed, checks=checks)
+n StepResult(success=False, error=r.stderr, message="nginx -t failed")
+
+        print_info("Restarting nginx...")
+        r = run_shell("systemctl restart nginx", log_path=log)
+        if r.returncode != 0:
+            return StepResult(success=False, error=r.stderr, message="nginx restart failed")
+
+        return StepResult(success=True, message="Nginx configured")
+
+    def verify(self, config, state) -> VerifyResult:
+        checks = {}
+
+        test = run_shell("nginx -t 2>&1", capture=True)
+        checks["nginx_t"] = "ok" if test.returncode == 0 else test.stdout.strip()[:100]
+        test_ok = test.returncode == 0
+
+        active = run_shell("systemctl is-active nginx", capture=True).stdout.strip()
+        checks["nginx_active"] = active
+        active_ok = active == "active"
+
+        ports = run_shell("ss -tlnp", capture=True).stdout
+        checks["port_80"] = "listening" if ":80 " in ports else "MISSING"
+        checks["port_443"] = "listening" if ":443 " in ports else "MISSING"
+        checks["port_8443"] = "listening" if "127.0.0.1:8443 " in ports else "MISSING"
+
+        passed = test_ok and active_ok and ":443 " in ports
+        return VerifyResult(passed=passed, checks=checks)
