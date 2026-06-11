@@ -50,10 +50,22 @@ def _xray_config(cfg) -> dict:
                 },
                 "streamSettings": {
                     "network": "xhttp",
+                    "security": "tls",
+                    "tlsSettings": {
+                        "alpn": ["h2", "http/1.1"],
+                        "certificates": [{
+                            "certificateFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/fullchain.pem",
+                            "keyFile": f"/etc/letsencrypt/live/{cfg.cdn_domain}/privkey.pem"
+                        }]
+                    },
                     "xhttpSettings": {
                         "path": "/api/v1/sync",
                         "host": cfg.cdn_domain,
                         "mode": "packet-up",
+                        "extra": {
+                            "noKeepAlive": True,
+                            "noGRPC": True
+                        }
                     },
                 },
             },
@@ -152,7 +164,13 @@ class XrayStep(BaseStep):
         print_info("Writing xray config.json...")
         Path(XRAY_CONF).parent.mkdir(parents=True, exist_ok=True)
         Path(XRAY_CONF).write_text(json.dumps(_xray_config(config), indent=2))
-        run_shell(f"chown -R nobody:nogroup {Path(XRAY_CONF).parent}", log_path=log)
+        
+        print_info("Configuring Xray to run as root...")
+        override_dir = Path("/etc/systemd/system/xray.service.d")
+        override_dir.mkdir(parents=True, exist_ok=True)
+        override_conf = override_dir / "override.conf"
+        override_conf.write_text("[Service]\nUser=root\nGroup=root\n")
+        run_shell("systemctl daemon-reload", log_path=log)
 
         print_info("Testing xray config...")
         r = run_shell(f"{XRAY_BIN} run -test -config {XRAY_CONF}", log_path=log)
