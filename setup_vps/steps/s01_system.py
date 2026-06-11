@@ -41,7 +41,8 @@ class SystemPreparationStep(BaseStep):
         from setup_vps.ui import run_with_live_logs
 
         def apt_update(on_output):
-            return run_shell("apt-get update -qq && apt-get full-upgrade -y", log_path=log, on_output=on_output)
+            env = {"DEBIAN_FRONTEND": "noninteractive"}
+            return run_shell("apt-get update -qq && apt-get full-upgrade -yq", log_path=log, on_output=on_output, env=env)
 
         print_info("Updating apt packages...")
         r = run_with_live_logs("Apt Update & Upgrade", apt_update)
@@ -50,7 +51,8 @@ class SystemPreparationStep(BaseStep):
 
         def apt_install(on_output):
             pkgs = " ".join(REQUIRED_PACKAGES)
-            return run_shell(f"apt-get install -y {pkgs}", log_path=log, on_output=on_output)
+            env = {"DEBIAN_FRONTEND": "noninteractive"}
+            return run_shell(f"apt-get install -yq {pkgs}", log_path=log, on_output=on_output, env=env)
 
         print_info(f"Installing required packages...")
         r = run_with_live_logs("Installing dependencies", apt_install)

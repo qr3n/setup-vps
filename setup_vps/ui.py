@@ -1,4 +1,5 @@
 # setup_vps/ui.py
+import re
 from rich.console import Console, Group
 from rich.table import Table
 from rich.panel import Panel
@@ -7,27 +8,33 @@ from rich.live import Live
 from rich.spinner import Spinner
 from rich import box
 from prompt_toolkit import prompt
-from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.styles import Style
-from typing import Callable, Optional, Any
+from typing import Callable, Any
 
 from setup_vps.state import StepStatus
 
 console = Console()
 
+# Regex to remove ANSI escape sequences
+ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 # Gradient for log dimming (from bright white to dark grey)
 LOG_COLORS = ["#ffffff", "#e4e4e4", "#cccccc", "#b2b2b2", "#999999", "#808080", "#666666", "#4d4d4d"]
 
 class LiveLog:
-    def __init__(self, max_lines: int = 8):
+    def __init__(self, max_lines: int = 6):
         self.lines = []
         self.max_lines = max_lines
 
     def add_line(self, line: str):
-        if not line.strip(): return
-        # Keep only the last N lines
-        self.lines.append(line[:120]) # truncate long lines
+        # Remove ANSI codes, carriage returns, and strip extra spaces
+        clean_line = ANSI_ESCAPE.sub('', line)
+        clean_line = clean_line.replace('\r', '').replace('\n', '').strip()
+        if not clean_line:
+            return
+        
+        self.lines.append(clean_line)
         if len(self.lines) > self.max_lines:
             self.lines.pop(0)
 
@@ -36,16 +43,16 @@ class LiveLog:
         # Reverse to apply gradient from bottom (newest) to top (oldest)
         for i, line in enumerate(reversed(self.lines)):
             color = LOG_COLORS[i] if i < len(LOG_COLORS) else LOG_COLORS[-1]
-            styled_lines.append(Text(f"  {line}", style=color))
+            # no_wrap and ellipsis prevent the terminal from wrapping long lines and breaking the Live layout
+            styled_lines.append(Text(f"  {line}", style=color, overflow="ellipsis", no_wrap=True))
         
         return Group(*reversed(styled_lines))
 
 def run_with_live_logs(title: str, func: Callable[[Callable[[str], None]], Any]) -> Any:
     live_log = LiveLog()
-    with Live(Group(Spinner("dots", text=Text(f" {title}", style="bold cyan")), live_log), transient=True, console=console) as live:
+    with Live(Group(Spinner("dots", text=Text(f" {title}", style="bold cyan")), live_log), transient=True, console=console, refresh_per_second=10) as live:
         def callback(line: str):
             live_log.add_line(line)
-            # live.update(...) is automatic because LiveLog has __rich__
         
         return func(callback)
 
