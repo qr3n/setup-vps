@@ -18,6 +18,7 @@ ExecStart=/bin/bash -c '\\
   IFACE=$(ip route get 1.1.1.1 | grep -oP "dev \\\\K\\\\S+"); \\
   NCPU=$(nproc); \\
   CPU_MASK=$(printf "%%x" $(( (1 << NCPU) - 1 ))); \\
+  ip link set $IFACE txqueuelen 10000; \\
   ethtool -K $IFACE gso on gro on tso on tx-checksumming on 2>/dev/null; \\
   ethtool -K $IFACE tx-udp-segmentation on 2>/dev/null || true; \\
   ethtool -K $IFACE rx-udp-gro-forwarding on 2>/dev/null || true; \\
@@ -37,13 +38,17 @@ WantedBy=multi-user.target
 class HardwareTuningStep(BaseStep):
     name = "s01b_hardware"
     title = "Hardware Tuning"
-    description = "NIC ring buffers, UDP offloads, CPU governor"
+    description = "NIC ring buffers, UDP offloads, IRQ balance, CPU governor"
 
     def preflight(self, config, state) -> bool:
         return Path(NIC_OFFLOADS_SERVICE).exists()
 
     def run(self, config, state) -> StepResult:
         log = self.log_path()
+
+        print_info("Installing irqbalance...")
+        run_shell("apt install irqbalance -y", log_path=log)
+        run_shell("systemctl enable --now irqbalance", log_path=log)
 
         print_info("Creating NIC offloads service...")
         Path(NIC_OFFLOADS_SERVICE).write_text(NIC_SERVICE_CONTENT)

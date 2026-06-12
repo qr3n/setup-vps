@@ -100,10 +100,10 @@ def _xray_config(cfg) -> dict:
                     "finalmask": {
                         "quicParams": {
                             "congestion": "bbr",
-                            "initStreamReceiveWindow": 8388608,
-                            "maxStreamReceiveWindow": 8388608,
-                            "initConnectionReceiveWindow": 20971520,
-                            "maxConnectionReceiveWindow": 20971520,
+                            "initStreamReceiveWindow": 26843545,
+                            "maxStreamReceiveWindow": 26843545,
+                            "initConnectionReceiveWindow": 67108864,
+                            "maxConnectionReceiveWindow": 67108864,
                         }
                     }
                 },
@@ -171,11 +171,11 @@ class XrayStep(BaseStep):
         Path(XRAY_CONF).parent.mkdir(parents=True, exist_ok=True)
         Path(XRAY_CONF).write_text(json.dumps(_xray_config(config), indent=2))
         
-        print_info("Configuring Xray to run as root...")
+        print_info("Configuring Xray to run as root with high priority...")
         override_dir = Path("/etc/systemd/system/xray.service.d")
         override_dir.mkdir(parents=True, exist_ok=True)
         override_conf = override_dir / "override.conf"
-        override_conf.write_text("[Service]\nUser=root\nGroup=root\n")
+        override_conf.write_text("[Service]\nUser=root\nGroup=root\nNice=-5\n")
         run_shell("systemctl daemon-reload", log_path=log)
 
         print_info("Testing xray config...")

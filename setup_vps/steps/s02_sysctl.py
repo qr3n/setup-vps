@@ -8,69 +8,59 @@ SYSCTL_FILE = "/etc/sysctl.d/99-server.conf"
 SYSCTL_MARKER = "# setup-vps: kernel optimization"
 
 SYSCTL_CONF = """\
-# setup-vps: kernel optimization
+# setup-vps: kernel optimization (2026 update)
 
 # ── Congestion Control ──────────────────────────────────────────────────────
-net.core.default_qdisc=fq
-net.ipv4.tcp_congestion_control=bbr
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 
 # ── TCP Buffers (16 MB max — safe for 2 GB RAM) ────────────────────────────
-net.core.rmem_max=16777216
-net.core.wmem_max=16777216
-net.ipv4.tcp_rmem=4096 87380 16777216
-net.ipv4.tcp_wmem=4096 65536 16777216
-net.ipv4.tcp_moderate_rcvbuf=1
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_default = 1048576
+net.core.wmem_default = 1048576
+net.ipv4.tcp_rmem = 4096 1048576 16777216
+net.ipv4.tcp_wmem = 4096 524288 16777216
+net.ipv4.tcp_mem = 786432 1048576 1572864
 
-# ── UDP Buffers (quic-go requirements) ──────────────────────────────────────
-net.ipv4.udp_rmem_min=8192
-net.ipv4.udp_wmem_min=8192
-net.core.optmem_max=65536
+# ── Networking: Queues & Backlog ───────────────────────────────────────────
+net.core.netdev_max_backlog = 16384
+net.core.somaxconn = 8192
+net.ipv4.tcp_max_syn_backlog = 8192
 
-# ── Networking: Performance ─────────────────────────────────────────────────
-net.core.netdev_max_backlog=32768
-net.core.netdev_budget=600
-net.core.netdev_budget_usecs=8000
+# ── BBR / Fast Open / MTU probing ──────────────────────────────────────────
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_mtu_probing = 1
 
-# ── TCP: Metrics & Idle ─────────────────────────────────────────────────────
-net.ipv4.tcp_no_metrics_save=1
-net.ipv4.tcp_slow_start_after_idle=0
-
-# ── TIME_WAIT tuning ────────────────────────────────────────────────────────
-net.ipv4.tcp_max_tw_buckets=1440000
-net.ipv4.tcp_tw_reuse=1
-net.ipv4.ip_local_port_range=50001 65535
-
-# ── Keepalive ───────────────────────────────────────────────────────────────
-net.ipv4.tcp_keepalive_time=60
-net.ipv4.tcp_keepalive_intvl=10
-net.ipv4.tcp_keepalive_probes=6
-
-# ── SYN flood protection ────────────────────────────────────────────────────
-net.ipv4.tcp_syncookies=1
-net.ipv4.tcp_syn_retries=2
-net.ipv4.tcp_synack_retries=2
+# ── TIME_WAIT / Port Range ──────────────────────────────────────────────────
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 15
+net.ipv4.tcp_max_tw_buckets = 1440000
+net.ipv4.ip_local_port_range = 1024 65535
 
 # ── File descriptors ────────────────────────────────────────────────────────
-fs.file-max=2000000
-fs.nr_open=2000000
+fs.file-max = 2000000
+fs.nr_open = 2000000
 
 # ── Swap: only on OOM threat ────────────────────────────────────────────────
-vm.swappiness=1
-vm.vfs_cache_pressure=50
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
 
-# ── Spoof protection ────────────────────────────────────────────────────────
-net.ipv4.conf.all.rp_filter=1
-net.ipv4.conf.all.accept_redirects=0
-net.ipv4.conf.all.send_redirects=0
+# ── Security & Hardening ────────────────────────────────────────────────────
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.tcp_syncookies = 1
 
-net.core.rps_sock_flow_entries=32768
+# ── RPS / UDP Offload support ───────────────────────────────────────────────
+net.core.rps_sock_flow_entries = 32768
 """
 
 
 class SysctlStep(BaseStep):
     name = "s02_sysctl"
     title = "Kernel / Sysctl"
-    description = "BBR congestion control, TCP buffer tuning, performance hardening"
+    description = "BBRv3, TCP/UDP buffer tuning, 2026 performance baseline"
 
     def preflight(self, config, state) -> bool:
         if not Path(SYSCTL_FILE).exists():
@@ -79,8 +69,8 @@ class SysctlStep(BaseStep):
         if SYSCTL_MARKER not in content:
             return False
         # Check one key new value
-        metrics = run_shell("sysctl -n net.ipv4.tcp_no_metrics_save", capture=True)
-        return metrics.stdout.strip() == "1"
+        fastopen = run_shell("sysctl -n net.ipv4.tcp_fastopen", capture=True)
+        return fastopen.stdout.strip() == "3"
 
     def run(self, config, state) -> StepResult:
         log = self.log_path()
@@ -101,7 +91,7 @@ class SysctlStep(BaseStep):
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="sysctl --system failed")
 
-        return StepResult(success=True, message="Kernel optimization applied")
+        return StepResult(success=True, message="Kernel optimization (2026) applied")
 
     def verify(self, config, state) -> VerifyResult:
         checks = {}
@@ -112,15 +102,15 @@ class SysctlStep(BaseStep):
             return val
 
         bbr = get_sysctl("net.ipv4.tcp_congestion_control")
-        backlog = get_sysctl("net.core.netdev_max_backlog")
-        metrics = get_sysctl("net.ipv4.tcp_no_metrics_save")
+        fastopen = get_sysctl("net.ipv4.tcp_fastopen")
         port_range = get_sysctl("net.ipv4.ip_local_port_range")
+        rmem_default = get_sysctl("net.core.rmem_default")
 
         passed = (
             bbr == "bbr" and 
-            backlog == "32768" and 
-            metrics == "1" and 
-            port_range == "50001\t65535"
+            fastopen == "3" and 
+            port_range == "1024\t65535" and
+            rmem_default == "1048576"
         )
         return VerifyResult(passed=passed, checks=checks)
 
