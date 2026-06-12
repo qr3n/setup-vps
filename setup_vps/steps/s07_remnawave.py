@@ -87,6 +87,20 @@ class RemnawaveNodeStep(BaseStep):
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="Failed to start docker-compose")
 
+        # 6. Wait for port 2222 to be ready
+        print_info("Waiting for remnawave-node to start (up to 30s)...")
+        import time
+        ready = False
+        for _ in range(30):
+            r = run_shell("ss -tlnp", capture=True)
+            if ":2222 " in r.stdout:
+                ready = True
+                break
+            time.sleep(1)
+        
+        if not ready:
+            return StepResult(success=False, message="remnawave-node started but port 2222 is not listening after 30s")
+
         print_success("Remnawave node started successfully!")
         return StepResult(success=True, message="Remnawave node is running.")
 
