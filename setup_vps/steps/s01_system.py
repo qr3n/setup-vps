@@ -17,7 +17,7 @@ REQUIRED_PACKAGES = [
     "unattended-upgrades", "apt-listchanges",
     "ufw", "knockd", "certbot",
     "net-tools", "lsof", "lsb-release",
-    "ethtool", "cpufrequtils", "mokutil"
+    "ethtool", "linux-cpupower", "mokutil"
 ]
 
 
