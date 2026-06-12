@@ -43,7 +43,6 @@ stream {{
         proxy_timeout 3600s;
     }}
 }}
-"""
 
 http {{
     sendfile on;
@@ -212,4 +211,3 @@ class NginxStep(BaseStep):
 
         passed = test_ok and active_ok and ":443 " in ports
         return VerifyResult(passed=passed, checks=checks)
-
