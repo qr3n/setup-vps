@@ -7,9 +7,9 @@ from setup_vps.steps.s03_ssh import SSHHardeningStep
 from setup_vps.steps.s04_firewall import FirewallStep
 from setup_vps.steps.s05_certificates import CertificatesStep
 from setup_vps.steps.s06_nginx import NginxStep
-from setup_vps.steps.s07_xray import XrayStep
+from setup_vps.steps.s07_remnawave import RemnawaveNodeStep
 from setup_vps.runner import run_shell
-from setup_vps.ui import print_info, print_check_result, ask_confirm, print_error, print_warning
+from setup_vps.ui import print_info, print_check_result, ask_confirm, print_error, print_warning, print_success
 
 
 ALL_STEPS = [
@@ -20,7 +20,7 @@ ALL_STEPS = [
     FirewallStep(),
     CertificatesStep(),
     NginxStep(),
-    XrayStep(),
+    RemnawaveNodeStep(),
 ]
 
 
@@ -42,72 +42,42 @@ class FinalVerificationStep(BaseStep):
                 passed = (
                     "missing" not in value.lower() and 
                     "failed" not in value.lower() and 
-                    value not in ("inactive", "false", "0")
+                    value not in ("inactive", "false", "0", "no")
                 )
                 print_check_result(label, value, passed=passed)
             if not result.passed:
                 all_passed = False
 
-        # 1. XHTTP check
-        print_info("Checking XHTTP endpoint...")
-        xhttp = run_shell(
+        # 1. Node subdomain check
+        print_info(f"Checking Node connectivity via {config.node_domain}...")
+        # Since we use self-signed or panel certs, and it's proxied, 
+        # we check if we get a response from the node.
+        # Remnawave-node usually returns 404 or something if not authenticated, 
+        # but it should respond.
+        node_check = run_shell(
             f"curl -s -o /dev/null -w '%{{http_code}}' "
-            f"https://{config.cdn_domain}/api/v1/sync/ "
-            f"--resolve {config.cdn_domain}:443:127.0.0.1 "
+            f"https://{config.node_domain}/ "
+            f"--resolve {config.node_domain}:443:127.0.0.1 "
             f"--max-time 5 -k",
             capture=True,
         )
-        code = xhttp.stdout.strip()
-        xhttp_ok = code in ("200", "400", "405")
-        print_check_result("xhttp_endpoint_local", code, passed=xhttp_ok)
+        code = node_check.stdout.strip()
+        # Any response from a web server is better than none. 
+        # 401/404 are common for an unauthenticated request to an API node.
+        node_ok = code in ("200", "401", "404", "405")
+        print_check_result("node_domain_local", code or "no response", passed=node_ok)
         
-        if not xhttp_ok:
-            print_error("XHTTP check failed.")
-            if not ask_confirm("Continue anyway? (skip XHTTP failure)"):
-                return StepResult(success=False, message="XHTTP verification failed and user stopped")
-            print_warning("Skipping XHTTP failure.")
-            all_passed = False
-
-        # 2. TCP (Reality) check
-        print_info("Checking TCP (Reality) port...")
-        # Reality is on 1443 locally. We just check if it's open and responds to TLS
-        tcp_check = run_shell(
-            f"curl -s -o /dev/null -w '%{{http_code}}' "
-            f"https://{config.xray_reality_server_name}:1443 "
-            f"--resolve {config.xray_reality_server_name}:1443:127.0.0.1 "
-            f"--max-time 5 -k",
-            capture=True,
-        )
-        tcp_code = tcp_check.stdout.strip()
-        # Should return something (usually 200 or 301/302 from the target site)
-        tcp_ok = tcp_check.returncode == 0 and tcp_code != ""
-        print_check_result("tcp_reality_local", tcp_code or "no response", passed=tcp_ok)
-
-        if not tcp_ok:
-            print_error("TCP (Reality) check failed.")
-            if not ask_confirm("Continue anyway? (skip TCP failure)"):
-                return StepResult(success=False, message="TCP Reality verification failed and user stopped")
-            print_warning("Skipping TCP failure.")
-            all_passed = False
-
-        # 3. Hysteria2 check
-        print_info("Checking Hysteria2 (UDP) port...")
-        # Hysteria2 is on 443 UDP. Locally we can check if it's listening
-        udp_check = run_shell("ss -ulpn | grep :443 | grep xray", capture=True)
-        hysteria_ok = udp_check.returncode == 0 and ":443" in udp_check.stdout
-        print_check_result("hysteria2_udp_local", "listening" if hysteria_ok else "not found", passed=hysteria_ok)
-
-        if not hysteria_ok:
-            print_error("Hysteria2 check failed.")
-            if not ask_confirm("Continue anyway? (skip Hysteria2 failure)"):
-                return StepResult(success=False, message="Hysteria2 verification failed and user stopped")
-            print_warning("Skipping Hysteria2 failure.")
+        if not node_ok:
+            print_error("Node connectivity check failed.")
+            if not ask_confirm("Continue anyway?"):
+                return StepResult(success=False, message="Verification failed and user stopped")
             all_passed = False
 
         if all_passed:
+            print_success("\n[bold green]Configuration successfully verified![/bold green]")
             return StepResult(success=True, message="All verification checks passed")
         else:
-            return StepResult(success=True, message="Verification finished with some skips")
+            return StepResult(success=True, message="Verification finished with some issues")
 
     def verify(self, config, state) -> VerifyResult:
         return VerifyResult(passed=True, checks={"note": "run step for full verification"})

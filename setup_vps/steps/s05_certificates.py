@@ -77,12 +77,17 @@ class CertificatesStep(BaseStep):
         checks = {}
         passed = True
 
-        for domain in [config.main_domain, config.cdn_domain]:
+        for domain in [config.main_domain, config.cdn_domain, config.node_domain]:
+            if not domain: continue
             exists = _cert_path(domain).exists()
             days = _cert_expiry_days(domain) if exists else -1
             checks[f"{domain}_exists"] = str(exists)
             checks[f"{domain}_expiry_days"] = str(days)
             if not exists or days < 30:
+                passed = False
+
+        return VerifyResult(passed=passed, checks=checks)
+f not exists or days < 30:
                 passed = False
 
         return VerifyResult(passed=passed, checks=checks)

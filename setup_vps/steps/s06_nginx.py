@@ -9,7 +9,7 @@ NGINX_VPN_CONF = "/etc/nginx/sites-available/vpn"
 NGINX_MARKER = "# setup-vps: nginx"
 
 
-def _nginx_conf_content(main_domain: str, cdn_domain: str) -> str:
+def _nginx_conf_content(main_domain: str, cdn_domain: str, node_domain: str) -> str:
     # We need to ensure stream module is loaded and configured correctly
     return f"""\
 user www-data;
@@ -27,6 +27,7 @@ stream {{
     map $ssl_preread_server_name $backend {{
         {main_domain}   xray_reality;
         {cdn_domain}    xray_xhttp;
+        {node_domain}   nginx_https;
         default         nginx_https;
     }}
 
@@ -42,6 +43,7 @@ stream {{
         proxy_timeout 3600s;
     }}
 }}
+"""
 
 http {{
     sendfile on;
@@ -65,13 +67,13 @@ http {{
 """
 
 
-def _vpn_site_content(main_domain: str, cdn_domain: str) -> str:
+def _vpn_site_content(main_domain: str, cdn_domain: str, node_domain: str) -> str:
     return f"""\
 # setup-vps: vpn sites
 server {{
     listen 80;
     listen [::]:80;
-    server_name {main_domain} {cdn_domain};
+    server_name {main_domain} {cdn_domain} {node_domain};
     location /.well-known/acme-challenge/ {{
         root /var/www/html;
     }}
@@ -96,6 +98,28 @@ server {{
 
     location / {{
         try_files $uri $uri/ =404;
+    }}
+}}
+
+server {{
+    listen 127.0.0.1:8443 ssl;
+    http2 on;
+    server_name {node_domain};
+
+    ssl_certificate     /etc/letsencrypt/live/{node_domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{node_domain}/privkey.pem;
+
+    location / {{
+        proxy_pass http://127.0.0.1:2222;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support (if needed)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }}
 }}
 """
@@ -139,14 +163,14 @@ class NginxStep(BaseStep):
             return StepResult(success=False, error=r.stderr, message="nginx installation failed")
 
         print_info("Writing main nginx.conf...")
-        Path(NGINX_CONF).write_text(_nginx_conf_content(config.main_domain, config.cdn_domain))
+        Path(NGINX_CONF).write_text(_nginx_conf_content(config.main_domain, config.cdn_domain, config.node_domain))
 
         print_info("Writing vpn site config...")
         Path("/etc/nginx/sites-available").mkdir(parents=True, exist_ok=True)
         Path("/etc/nginx/sites-enabled").mkdir(parents=True, exist_ok=True)
         Path("/etc/nginx/modules-enabled").mkdir(parents=True, exist_ok=True)
         
-        Path(NGINX_VPN_CONF).write_text(_vpn_site_content(config.main_domain, config.cdn_domain))
+        Path(NGINX_VPN_CONF).write_text(_vpn_site_content(config.main_domain, config.cdn_domain, config.node_domain))
         
         enabled_path = Path("/etc/nginx/sites-enabled/vpn")
         if not enabled_path.exists():

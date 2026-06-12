@@ -19,9 +19,8 @@ from setup_vps.steps.s03_ssh import SSHHardeningStep
 from setup_vps.steps.s04_firewall import FirewallStep
 from setup_vps.steps.s05_certificates import CertificatesStep
 from setup_vps.steps.s06_nginx import NginxStep
-from setup_vps.steps.s07_xray import XrayStep
+from setup_vps.steps.s07_remnawave import RemnawaveNodeStep
 from setup_vps.steps.s08_verify import FinalVerificationStep
-from setup_vps.steps.s09_configs import ClientConfigsStep
 
 CONFIG_PATH = Path("config.yaml")
 STATE_PATH = Path("state.json")
@@ -34,9 +33,8 @@ STEPS = [
     FirewallStep(),
     CertificatesStep(),
     NginxStep(),
-    XrayStep(),
+    RemnawaveNodeStep(),
     FinalVerificationStep(),
-    ClientConfigsStep(),
 ]
 
 STEP_NAMES = [s.name for s in STEPS]
@@ -56,6 +54,7 @@ def _run_wizard() -> Config:
     cfg = Config(
         main_domain=ask("Main domain (e.g. main.example.com)"),
         cdn_domain=ask("CDN domain (e.g. cdn.example.com)"),
+        node_domain=ask("Node domain (e.g. node.example.com)"),
         server_ip=ask("Server public IP"),
         email=ask("Email (for certbot)"),
     )

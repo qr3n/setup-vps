@@ -14,6 +14,7 @@ import yaml
 class Config:
     main_domain: str = ""
     cdn_domain: str = ""
+    node_domain: str = ""
     server_ip: str = ""
     email: str = ""
 
@@ -54,13 +55,6 @@ def config_hash(cfg: Config) -> str:
 
 def generate_secrets(cfg: Config):
     """Fill empty auto-generated fields in place. Does NOT overwrite existing values."""
-    if not cfg.xray_uuid:
-        cfg.xray_uuid = str(uuid.uuid4())
     if not cfg.ssh_knock_ports:
         ports = random.sample(range(5000, 65000), 3)
         cfg.ssh_knock_ports = sorted(ports)
-    if not cfg.hysteria2_auth_password:
-        cfg.hysteria2_auth_password = secrets.token_urlsafe(24)
-    if not cfg.hysteria2_salamander_password:
-        cfg.hysteria2_salamander_password = secrets.token_urlsafe(24)
-    # xray keys generated after xray binary installed — done in s07
