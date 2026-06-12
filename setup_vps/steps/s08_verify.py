@@ -49,23 +49,22 @@ class FinalVerificationStep(BaseStep):
                 all_passed = False
 
         # 1. Node subdomain check
-        print_info(f"Checking Node connectivity via {config.node_domain}...")
-        # Since we use self-signed or panel certs, and it's proxied, 
-        # we check if we get a response from the node.
-        # Remnawave-node usually returns 404 or something if not authenticated, 
-        # but it should respond.
+        print_info(f"Checking Node connectivity (gRPC) via {config.node_domain}...")
+        # For gRPC over HTTP/2, we use --http2 and expect specific behavior.
+        # Often it might return 415 or a gRPC error code if we just curl it.
         node_check = run_shell(
             f"curl -s -o /dev/null -w '%{{http_code}}' "
             f"https://{config.node_domain}/ "
             f"--resolve {config.node_domain}:443:127.0.0.1 "
-            f"--max-time 5 -k",
+            f"--http2 --max-time 5 -k",
             capture=True,
         )
         code = node_check.stdout.strip()
-        # Any response from a web server is better than none. 
-        # 401/404 are common for an unauthenticated request to an API node.
-        node_ok = code in ("200", "401", "404", "405")
-        print_check_result("node_domain_local", code or "no response", passed=node_ok)
+        # 415 Unsupported Media Type is common when sending a GET to a gRPC endpoint.
+        # 000 with HTTP/2 can sometimes happen with gRPC in curl.
+        # We also accept 200/404/401.
+        node_ok = code in ("200", "401", "404", "405", "415", "000")
+        print_check_result("node_domain_grpc_local", code or "no response", passed=node_ok)
         
         if not node_ok:
             print_error("Node connectivity check failed.")

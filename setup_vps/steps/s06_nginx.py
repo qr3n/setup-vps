@@ -109,16 +109,10 @@ server {{
     ssl_certificate_key /etc/letsencrypt/live/{node_domain}/privkey.pem;
 
     location / {{
-        proxy_pass http://127.0.0.1:2222;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support (if needed)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        grpc_pass grpc://127.0.0.1:2222;
+        grpc_set_header Host $host;
+        grpc_set_header X-Real-IP $remote_addr;
+        grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }}
 }}
 """

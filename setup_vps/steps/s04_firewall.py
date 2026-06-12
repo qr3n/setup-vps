@@ -32,6 +32,7 @@ class FirewallStep(BaseStep):
         run_shell("ufw --force reset", log_path=log)
         run_shell("ufw default deny incoming", log_path=log)
         run_shell("ufw default allow outgoing", log_path=log)
+        run_shell("ufw allow in on lo", log_path=log)
 
         rules = [
             ("80/tcp",           "HTTP: certbot + redirect"),
