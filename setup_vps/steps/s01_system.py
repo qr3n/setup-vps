@@ -1,4 +1,3 @@
-# setup_vps/steps/s01_system.py
 import re
 from pathlib import Path
 from setup_vps.steps.base import BaseStep, StepResult, VerifyResult
@@ -17,7 +16,7 @@ REQUIRED_PACKAGES = [
     "unattended-upgrades", "apt-listchanges",
     "ufw", "knockd", "certbot",
     "net-tools", "lsof", "lsb-release",
-    "ethtool", "linux-cpupower", "mokutil"
+    "ethtool", "mokutil"
 ]
 
 
