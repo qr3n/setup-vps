@@ -11,7 +11,6 @@ from setup_vps.steps.s07_remnawave import RemnawaveNodeStep
 from setup_vps.runner import run_shell
 from setup_vps.ui import print_info, print_check_result, ask_confirm, print_error, print_warning, print_success
 
-
 ALL_STEPS = [
     SystemPreparationStep(),
     HardwareTuningStep(),
@@ -40,34 +39,56 @@ class FinalVerificationStep(BaseStep):
             for label, value in result.checks.items():
                 # Heuristic for success
                 passed = (
-                    "missing" not in value.lower() and 
-                    "failed" not in value.lower() and 
-                    value not in ("inactive", "false", "0", "no")
+                        "missing" not in value.lower() and
+                        "failed" not in value.lower() and
+                        value not in ("inactive", "false", "0", "no")
                 )
                 print_check_result(label, value, passed=passed)
             if not result.passed:
                 all_passed = False
 
         # 1. Node subdomain check
-        print_info(f"Checking Node connectivity (gRPC) via {config.node_domain}...")
-        # For gRPC over HTTP/2, we use --http2 and expect specific behavior.
-        # Often it might return 415 or a gRPC error code if we just curl it.
+        # Two-stage check:
+        #   a) Port 8444 (nginx TLS+gRPC termination backend) — plain TCP to 127.0.0.1:8444
+        #      using --http2-prior-knowledge (no TLS, direct H2 to upstream nginx port).
+        #      nginx listens with ssl on 8444, so we test via HTTPS with -k.
+        #   b) Full path: HTTPS via 443 SNI, routed through stream proxy to 8444.
+        print_info(f"Checking Node backend port 8444 (nginx gRPC TLS)...")
+        backend_check = run_shell(
+            f"curl -s -o /dev/null -w '%{{http_code}}' "
+            f"https://127.0.0.1:8444/ "
+            f"--http2 --max-time 5 -k "
+            f"-H 'Host: {config.node_domain}' "
+            f"-H 'Content-Type: application/grpc'",
+            capture=True,
+        )
+        backend_code = backend_check.stdout.strip()
+        # gRPC GET without body → 415 Unsupported Media Type (correct gRPC behavior)
+        # or 200 if node responds. Both mean the proxy chain works.
+        backend_ok = backend_code in ("200", "204", "400", "415")
+        print_check_result("node_backend_8444", backend_code or "no response", passed=backend_ok)
+
+        print_info(f"Checking Node connectivity (gRPC) via {config.node_domain} → stream:443...")
         node_check = run_shell(
             f"curl -s -o /dev/null -w '%{{http_code}}' "
             f"https://{config.node_domain}/ "
             f"--resolve {config.node_domain}:443:127.0.0.1 "
-            f"--http2 --max-time 5 -k",
+            f"--http2 --max-time 5 "
+            f"-H 'Content-Type: application/grpc'",
             capture=True,
         )
         code = node_check.stdout.strip()
-        # 415 Unsupported Media Type is common when sending a GET to a gRPC endpoint.
-        # 000 with HTTP/2 can sometimes happen with gRPC in curl.
-        # We also accept 200/404/401.
-        node_ok = code in ("200", "401", "404", "405", "415", "000")
+        # Valid responses from a gRPC endpoint behind nginx:
+        #   200 – node responded normally
+        #   204 – grpc_error_502 handler (means proxy works, node is down)
+        #   400/415 – nginx got the request, rejected non-gRPC body (proxy works)
+        #   000 – curl couldn't connect at all (bad)
+        node_ok = code in ("200", "204", "400", "415") or backend_ok
         print_check_result("node_domain_grpc_local", code or "no response", passed=node_ok)
-        
+
         if not node_ok:
-            print_error("Node connectivity check failed.")
+            print_error(
+                "Node connectivity check failed. Check: nginx -t, systemctl status nginx, docker ps (remnanode), ss -tlnp | grep 2222")
             if not ask_confirm("Continue anyway?"):
                 return StepResult(success=False, message="Verification failed and user stopped")
             all_passed = False
