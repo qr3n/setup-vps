@@ -80,9 +80,9 @@ class RemnawaveNodeStep(BaseStep):
         # 5. Start the container
         print_info("Starting remnawave-node...")
         # Try docker compose (new) then docker-compose (old)
-        r = run_shell("docker compose up -d", dir_path=str(DOCKER_COMPOSE_PATH.parent), log_path=log)
+        r = run_shell("docker compose up -d", cwd=str(DOCKER_COMPOSE_PATH.parent), log_path=log)
         if r.returncode != 0:
-            r = run_shell("docker-compose up -d", dir_path=str(DOCKER_COMPOSE_PATH.parent), log_path=log)
+            r = run_shell("docker-compose up -d", cwd=str(DOCKER_COMPOSE_PATH.parent), log_path=log)
         
         if r.returncode != 0:
             return StepResult(success=False, error=r.stderr, message="Failed to start docker-compose")
