@@ -21,6 +21,7 @@ from setup_vps.steps.s05_certificates import CertificatesStep
 from setup_vps.steps.s06_nginx import NginxStep
 from setup_vps.steps.s07_xray import XrayStep
 from setup_vps.steps.s08_verify import FinalVerificationStep
+from setup_vps.steps.s09_configs import ClientConfigsStep
 
 CONFIG_PATH = Path("config.yaml")
 STATE_PATH = Path("state.json")
@@ -35,6 +36,7 @@ STEPS = [
     NginxStep(),
     XrayStep(),
     FinalVerificationStep(),
+    ClientConfigsStep(),
 ]
 
 STEP_NAMES = [s.name for s in STEPS]
@@ -101,6 +103,10 @@ def cli(config_file):
             cfg = _run_wizard()
         else:
             sys.exit(0)
+    
+    # Ensure all secrets (UUID, etc.) are present
+    generate_secrets(cfg)
+    save_config(cfg, config_path)
 
     state = State(STATE_PATH, STEP_NAMES)
     
