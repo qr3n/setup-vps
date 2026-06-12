@@ -1,4 +1,3 @@
-# setup_vps/steps/s05_certificates.py
 import re
 from datetime import datetime
 from pathlib import Path
@@ -34,12 +33,13 @@ def _cert_expiry_days(domain: str) -> int:
 class CertificatesStep(BaseStep):
     name = "s05_certificates"
     title = "SSL Certificates"
-    description = "certbot standalone certificates for main + cdn domains"
+    description = "certbot standalone certificates for main, cdn and node domains"
 
     def preflight(self, config, state) -> bool:
         main_ok = _cert_path(config.main_domain).exists() and _cert_expiry_days(config.main_domain) > 30
         cdn_ok = _cert_path(config.cdn_domain).exists() and _cert_expiry_days(config.cdn_domain) > 30
-        return main_ok and cdn_ok
+        node_ok = _cert_path(config.node_domain).exists() and _cert_expiry_days(config.node_domain) > 30
+        return main_ok and cdn_ok and node_ok
 
     def run(self, config, state) -> StepResult:
         log = self.log_path()
@@ -48,7 +48,8 @@ class CertificatesStep(BaseStep):
         print_info("Stopping nginx temporarily (port 80 needed)...")
         run_shell("systemctl stop nginx 2>/dev/null || true", log_path=log)
 
-        for domain in [config.main_domain, config.cdn_domain]:
+        for domain in [config.main_domain, config.cdn_domain, config.node_domain]:
+            if not domain: continue
             if _cert_path(domain).exists() and _cert_expiry_days(domain) > 30:
                 print_info(f"Certificate for {domain} already valid, skipping...")
                 continue
@@ -84,10 +85,6 @@ class CertificatesStep(BaseStep):
             checks[f"{domain}_exists"] = str(exists)
             checks[f"{domain}_expiry_days"] = str(days)
             if not exists or days < 30:
-                passed = False
-
-        return VerifyResult(passed=passed, checks=checks)
-f not exists or days < 30:
                 passed = False
 
         return VerifyResult(passed=passed, checks=checks)
